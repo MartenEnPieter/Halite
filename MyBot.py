@@ -14,15 +14,41 @@ def move(location):
     LOCALCARDINALS = CARDINALS
     shuffle(LOCALCARDINALS)
     
+    direction = STILL
+    minstrength = float("inf")
+    interior = True
+
+    
     for d in LOCALCARDINALS:
         neighbour_site = gameMap.getSite(location, d)
-        #Always take enemy/neutral neighbour if your strenght is enough.
-        if neighbour_site.owner != myID and neighbour_site.strength < site.strength:
-            return Move(location, d)
-        #Only move otherwise if you are more than twice the strength of current production value
-        elif neighbour_site.owner == myID and site.strength > 2 * site.production:
-            return Move(location, d)
-    return Move(location, STILL)
+        #Check if all neighbours are of the same owner
+        if neighbour_site.owner != myID:
+            interior = False
+            #Always take enemy/neutral neighbour if your strenght is enough.
+            if neighbour_site.strength < site.strength and neighbour_site.strength < minstrength:
+                minstrength = neighbour_site.strength
+                direction = d
+    
+    #If the location is interior and with strength more than twice the production, move it to closest border
+    if interior and site.strength > 2 * site.production:
+        closestborder = float("inf")
+        #Loop over all directions to find closest border
+        for d in CARDINALS:
+            if d == NORTH or d == SOUTH:
+                size = gameMap.height/2
+            else:
+                size = gameMap.width/2
+            
+            #Move Checkpoint until you reach an exterior site or are halfway the field
+            checkpoint = gameMap.getLocation(location,d)
+            while gameMap.getSite(checkpoint).owner == myID and gameMap.getDistance(checkpoint, location) < size:
+                checkpoint = gameMap.getLocation(checkpoint,d)
+            
+            if gameMap.getDistance(checkpoint, location) < closestborder:
+                direction = d
+                closestborder = gameMap.getDistance(checkpoint, location)
+    
+    return Move(location, direction)
 
 #Loops as long as the game lasts.
 while True:
