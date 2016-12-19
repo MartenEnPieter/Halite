@@ -28,6 +28,31 @@ class Move:
         self.loc = loc
         self.direction = direction
 
+    def getLocationAccordingToMove(self, width, height):        
+        l = copy.deepcopy(self.loc)
+        if self.direction != STILL:
+            if self.direction == NORTH:
+                if self.loc.y == 0:
+                    l.y = height - 1
+                else:
+                    l.y -= 1
+            elif self.direction == EAST:
+                if self.loc.y == width - 1:
+                    l.x = 0
+                else:
+                    l.x += 1
+            elif self.direction == SOUTH:
+                if self.loc.y == height - 1:
+                    l.y = 0
+                else:
+                    l.y += 1
+            elif self.direction == WEST:
+                if self.loc.y == 0:
+                    l.x = width - 1
+                else:
+                    l.x -= 1
+        return l
+
 class GameMap:
     def __init__(self, width = 0, height = 0, numberOfPlayers = 0):
         self.width = width

@@ -1,0 +1,141 @@
+from hlt import *
+from networkingV2 import *
+from random import shuffle
+
+'''
+Current bug in this version:
+- Sometimes invalid moves, somehow -1 ends up as the move?
+And/Or: something related to double locations in the loop. 
+I think when this moves from 2 different positions to the same new position, this now is probably double in the list
+Can be solved by using a Python set?
+'''
+
+
+#Move function describes move of a single unit, given its location
+def move(location):
+    site = gameMap.getSite(location)
+    
+    direction = STILL
+    minstrength = float("inf")
+    interior = True
+
+    
+    for d in CARDINALS:
+        neighbour_site = gameMap.getSite(location, d)
+        #Check if all neighbours are of the same owner
+        if neighbour_site.owner != myID:
+            interior = False
+            #Always take enemy/neutral neighbour if your strenght is enough.
+            if neighbour_site.strength < site.strength and neighbour_site.strength < minstrength:
+                minstrength = neighbour_site.strength
+                direction = d
+    
+    #If the location is interior and with strength more than twice the production, move it to closest border
+    if interior and site.strength > 2 * site.production:
+        closestborder = float("inf")
+        #Loop over all directions to find closest border
+        for d in CARDINALS:
+            if d == NORTH or d == SOUTH:
+                size = gameMap.height/2
+            else:
+                size = gameMap.width/2
+            
+            #Move Checkpoint until you reach an exterior site or are halfway the field
+            checkpoint = gameMap.getLocation(location,d)
+            while gameMap.getSite(checkpoint).owner == myID and gameMap.getDistance(checkpoint, location) < size:
+                checkpoint = gameMap.getLocation(checkpoint,d)
+            
+            if gameMap.getDistance(checkpoint, location) < closestborder:
+                direction = d
+                closestborder = gameMap.getDistance(checkpoint, location)
+    
+    return Move(location, direction)
+
+def isBorder(location):
+    for d in CARDINALS:
+        neighbour_site = gameMap.getSite(location, d)
+        #Check if all neighbours are of the same owner
+        if neighbour_site.owner != myID:
+            return True
+    
+    return False
+    
+def moveBorder(location):
+    site = gameMap.getSite(location)
+    
+    direction = STILL
+    minstrength = float("inf")
+
+    for d in CARDINALS:
+        neighbour_site = gameMap.getSite(location, d)
+        #Check if all neighbours are of the same owner
+        if neighbour_site.owner != myID and neighbour_site.strength < site.strength and neighbour_site.strength < minstrength:
+            #Always take enemy/neutral neighbour if your strenght is enough.
+                minstrength = neighbour_site.strength
+                direction = d
+    
+    return Move(location, direction)
+    
+def moveInterior(location):
+    site = gameMap.getSite(location)
+    direction = STILL
+    
+    if site.strength > 2 * site.production:
+        borderdistance = float("inf")
+        for borderloc in border:
+            if gameMap.getDistance(location, borderloc) < borderdistance:
+                borderdistance = gameMap.getDistance(location, borderloc)
+                angle = gameMap.getAngle(location, borderloc)
+                if angle < math.pi/4 and angle >= -math.pi/4:
+                    direction = EAST
+                if angle < 3*math.pi/4 and angle >= math.pi/4:
+                    direction = NORTH
+                if angle < -3*math.pi/4 or angle >= 3*math.pi/4:
+                    direction = WEST
+                if angle < -math.pi/4 and angle >= -3*math.pi/4:
+                    direction = NORTH
+    
+    return Move(location, direction)
+
+'''
+START RUNNING HALITE GAME
+'''
+
+#Get initial information of game
+myID = getMyPlayerId()
+gameMap, myLocations = getInit(myID)
+sendInit("MartenEnPieter")
+
+myPossibleLocations = []
+myPossibleLocations.extend(myLocations)
+
+#Loops as long as the game lasts.
+while True:
+    #f = open('workfile', 'a')
+    #f.write('test')
+    #f.close()
+    moves = []
+    gameMap = getFrame()
+    interior = []
+    border = []
+    newPossibleLocations = []
+    #loops over all positions and performs Move function if location is owned by us.
+    for myLocation in myPossibleLocations:
+        if gameMap.getSite(myLocation).owner == myID:
+            newPossibleLocations.append(myLocation)
+            if isBorder(myLocation):
+                border.append(myLocation)
+                newMove = moveBorder(myLocation)
+                moves.append(newMove)
+                if newMove.direction != STILL:
+                    newLocation = newMove.getLocationAccordingToMove(gameMap.width, gameMap.height)
+                    newPossibleLocations.append(newLocation)
+            else:
+                interior.append(myLocation)
+    
+    for location in interior:
+        moves.append(moveInterior(location))
+    
+    myPossibleLocations.clear()
+    myPossibleLocations.extend(newPossibleLocations)
+    sendFrame(moves)
